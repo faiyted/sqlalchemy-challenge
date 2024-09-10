@@ -122,9 +122,9 @@ def start(startDate):
 @app.route('/api/v1.0/<startDate>/<endDate>')
 def startEnd(startDate, endDate):
     
-    sel = [Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
+    sql = [Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
 
-    results =  (session.query(*sel)
+    results =  (session.query(*sql)
                        .filter(func.strftime("%Y-%m-%d", Measurement.date) >= startDate)
                        .filter(func.strftime("%Y-%m-%d", Measurement.date) <= endDate)
                        .group_by(Measurement.date)
