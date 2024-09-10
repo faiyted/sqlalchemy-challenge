@@ -83,12 +83,12 @@ def stations():
 
 @app.route("/api/v1.0/tobs")
 def temperature():
-
+    session = Session(engine)
     results = session.query(Measurement.date,  Measurement.tobs,Measurement.prcp).\
                 filter(Measurement.date >= '2016-08-23').\
                 filter(Measurement.station=='USC00519281').\
                 order_by(Measurement.date).all()
-
+    session.close()
     tempData = []
     for result in results:
         tempDict = {result.date: result.tobs}
@@ -122,9 +122,9 @@ def start(startDate):
 @app.route('/api/v1.0/<startDate>/<endDate>')
 def startEnd(startDate, endDate):
     
-    sql = [Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
+    sel = [Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
 
-    results =  (session.query(*sql)
+    results =  (session.query(*sel)
                        .filter(func.strftime("%Y-%m-%d", Measurement.date) >= startDate)
                        .filter(func.strftime("%Y-%m-%d", Measurement.date) <= endDate)
                        .group_by(Measurement.date)
