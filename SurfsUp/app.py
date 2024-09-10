@@ -1,9 +1,5 @@
 # Import the dependencies.
 import numpy as np
-import flask 
-print(flask.__version__)
-import sqlalchemy
-print(sqlalchemy.__version__)
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
@@ -47,7 +43,12 @@ prev_year = dt.date(2017, 8, 23) - dt.timedelta(days=365)
 def welcome():
     """List all available api routes."""
     return (
-        f"Welcome to the SQL-Alchemy APP API!<br/>"
+        f"Welcome to the SQL-Alchemy API!<br/>"
+        f"/api/v1.0/precipitation<br/>"
+        f"/api/v1.0/stations<br/>"
+        f"/api/v1.0/tobs<br/>"
+        f"/api/v1.0/startDate<br/>"
+        f"/api/v1.0/startDate/endDate<br/>"
     )
 
 
@@ -63,14 +64,18 @@ def precipitation():
     # Convert the result to a list of dictionaries
     precipitation_data = []
     for date, prcp in result:
-        precipitation_data.append({"date": date, "prcp": prcp})
-
+        prcp_data = {}
+        prcp_data["date"] = date
+        prcp_data["prcp"] = prcp
+        precipitation_data.append(prcp_data)
     return jsonify(precipitation_data)
 
 # Return a JSON list 
 @app.route("/api/v1.0/stations")
 def stations():
-    results = session.query(Station.name).all()
+    session = Session(engine)
+    results = session.query(Station.station).all()
+    session.close()
     all_stations = list(np.ravel(results))
     return jsonify(all_stations)
 
@@ -79,10 +84,10 @@ def stations():
 @app.route("/api/v1.0/tobs")
 def temperature():
 
-    results = (session.query(Measurement.date, Measurement.tobs, Measurement.station)
-                      .filter(Measurement.date > prev_year, Measurement.station =="USC00519281")
-                      .order_by(Measurement.date)
-                      .all())
+    results = session.query(Measurement.date,  Measurement.tobs,Measurement.prcp).\
+                filter(Measurement.date >= '2016-08-23').\
+                filter(Measurement.station=='USC00519281').\
+                order_by(Measurement.date).all()
 
     tempData = []
     for result in results:
@@ -96,20 +101,19 @@ def temperature():
 # Date must be keyed YYYY-MM-DD
 @app.route('/api/v1.0/<startDate>')
 def start(startDate):
-    sel = [Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
+    session = Session(engine)
 
-    results =  (session.query(*sel)
-                       .filter(func.strftime("%Y-%m-%d", Measurement.date) >= startDate)
-                       .group_by(Measurement.date)
-                       .all())
+    results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+                filter(Measurement.date >= startDate).all()
+
+    session.close()
 
     dates = []                       
-    for result in results:
-        date_dict = {}
-        date_dict["Date"] = result[0]
-        date_dict["Low Temp"] = result[1]
-        date_dict["Avg Temp"] = result[2]
-        date_dict["High Temp"] = result[3]
+    for  min, avg,max in results:
+        date_dict = {}  
+        date_dict["Min_Temp"] = min
+        date_dict["Avg_Temp"] = avg
+        date_dict["Max_Temp"] = max
         dates.append(date_dict)
     return jsonify(dates)
 
@@ -117,6 +121,7 @@ def start(startDate):
 # Date must be keyed YYYY-MM-DD/YYYY-MM-DD
 @app.route('/api/v1.0/<startDate>/<endDate>')
 def startEnd(startDate, endDate):
+    
     sel = [Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
 
     results =  (session.query(*sel)
@@ -126,12 +131,12 @@ def startEnd(startDate, endDate):
                        .all())
 
     dates = []                       
-    for result in results:
+    for date, min, avg,max in results:
         date_dict = {}
-        date_dict["Date"] = result[0]
-        date_dict["Low Temp"] = result[1]
-        date_dict["Avg Temp"] = result[2]
-        date_dict["High Temp"] = result[3]
+        date_dict["Date"] = date
+        date_dict["Min_Temp"] = min
+        date_dict["Avg_Temp"] = avg
+        date_dict["Max_Temp"] = max
         dates.append(date_dict)
     return jsonify(dates)
 
